@@ -1,4 +1,3 @@
-# enter your python code here
 from flask import Flask, request, jsonify
 from flask_restplus import Api, Resource, fields
 from flask_sqlalchemy import SQLAlchemy
