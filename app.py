@@ -1,50 +1,55 @@
 from flask import Flask, request, jsonify
-from flask_restplus import Api, Resource, fields
+from flask_restplus import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
+from openpyxl import load_workbook
+from werkzeug.utils import secure_filename
 
-app = Flask(__name__)
-api = Api(app, version='1.0', title='Medication Data API',
-          description='API to save medication data in Postgres database')
+app = Flask(_name_)
+api = Api(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://username:password@localhost/db_name'
+class Config:
+    SQLALCHEMY_DATABASE_URI = 'postgresql://username:password@localhost/dbname'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+app.config.from_object(Config)
+
 db = SQLAlchemy(app)
 
 class Medication(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    product_name = db.Column(db.String(100), nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    type = db.Column(db.String(100), nullable=False)
-    quantity = db.Column(db.String(100), nullable=False)
-   
-    column1 = db.Column(db.String(100), nullable=True)
-    column2 = db.Column(db.String(100), nullable=True)
+    product_name = db.Column(db.String(255), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    type = db.Column(db.String(255), nullable=False)
+    quantity = db.Column(db.String(255), nullable=False)
+    dosage = db.Column(db.String(255), nullable=False)
+    frequency = db.Column(db.String(255), nullable=False)
+    duration = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
-@api.route('/medications')
-class MedicationList(Resource):
-    medication_model = api.model('Medication', {
-        'id': fields.Integer(readOnly=True, description='The medication unique identifier'),
-        'product_name': fields.String(required=True, description='The product name'),
-        'name': fields.String(description='The name of the medication'),
-        'type': fields.String(description='The type of the medication'),
-        'quantity': fields.String(description='The quantity of the medication'),
-        'column1': fields.String(description='Column 1'),
-        'column2': fields.String(description='Column 2'),
-    })
-
-    @api.expect(medication_model)
+@api.route('/upload')
+class Upload(Resource):
     def post(self):
-        data = request.get_json()
-        product_name = data['product_name']
-        name, type, quantity = product_name.split(' ', 2)
-        medication = Medication(product_name=product_name, name=name, type=type, quantity=quantity, **data)
-        db.session.add(medication)
+        file = request.files['file']
+        filename = secure_filename(file.filename)
+        wb = load_workbook(filename=file)
+        sheet = wb.active
+        data = []
+        for row in sheet.iter_rows(values_only=True):
+            product_name, dosage, frequency, duration = row
+            name, type, quantity = product_name.split(' ', 2)
+            data.append({
+                'product_name': product_name,
+                'name': name,
+                'type': type,
+                'quantity': quantity,
+                'dosage': dosage,
+                'frequency': frequency,
+                'duration': duration
+            })
+        db.session.bulk_save_objects([Medication(**d) for d in data])
         db.session.commit()
-        return {'message': 'Medication data saved successfully'}, 201
+        return jsonify({'message': 'Data uploaded successfully'})
 
-    @api.marshal_list_with(medication_model)
-    def get(self):
-        medications = Medication.query.all()
-        return medications
-
-if __name__ == '__main__':
+if _name_ == '_main_':
     app.run(debug=True)
