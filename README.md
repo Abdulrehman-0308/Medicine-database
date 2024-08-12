@@ -1,6 +1,6 @@
-medication Data API
+Medication Data API
 
-This AOI saves medication data in a postgres database.
+This API saves medication data in a postgres database.
 
 Gettiong Started
 
